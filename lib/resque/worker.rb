@@ -16,10 +16,6 @@ module Resque
     # Whether the worker should log lots of info to STDOUT
     attr_accessor  :very_verbose
 
-    # Boolean indicating whether this worker can or can not fork.
-    # Automatically set if a fork(2) fails.
-    attr_accessor :cant_fork
-
     attr_writer :to_s
 
     # Returns an array of all worker objects.
@@ -58,6 +54,7 @@ module Resque
     # Alias of `find`
     def self.attach(worker_id)
       find(worker_id)
+
     end
 
     # Given a string worker id, return a boolean indicating whether the
@@ -113,34 +110,7 @@ module Resque
       $0 = "resque: Starting"
       startup
 
-      loop do
-        break if shutdown?
-
-        if not paused? and job = reserve
-          log "got: #{job.inspect}"
-          run_hook :before_fork, job
-          working_on job
-
-          if @child = fork
-            srand # Reseeding
-            procline "Forked #{@child} at #{Time.now.to_i}"
-            Process.wait
-          else
-            procline "Processing #{job.queue} since #{Time.now.to_i}"
-            perform(job, &block)
-            exit! unless @cant_fork
-          end
-
-          done_working
-          @child = nil
-        else
-          break if interval.zero?
-          log! "Sleeping for #{interval} seconds"
-          procline paused? ? "Paused" : "Waiting for #{@queues.join(',')}"
-          sleep interval
-        end
-      end
-
+      Resque.worker_strategy.work(self, interval, &block)
     ensure
       unregister_worker
     end
@@ -199,26 +169,6 @@ module Resque
     # can be useful for dynamically adding new queues.
     def queues
       @queues[0] == "*" ? Resque.queues.sort : @queues
-    end
-
-    # Not every platform supports fork. Here we do our magic to
-    # determine if yours does.
-    def fork
-      @cant_fork = true if $TESTING
-
-      return if @cant_fork
-
-      begin
-        # IronRuby doesn't support `Kernel.fork` yet
-        if Kernel.respond_to?(:fork)
-          Kernel.fork
-        else
-          raise NotImplementedError
-        end
-      rescue NotImplementedError
-        @cant_fork = true
-        nil
-      end
     end
 
     # Runs all the methods needed when a worker begins its lifecycle.
@@ -287,15 +237,7 @@ module Resque
     # Kills the forked child immediately, without remorse. The job it
     # is processing will not be completed.
     def kill_child
-      if @child
-        log! "Killing child at #{@child}"
-        if system("ps -o pid,state -p #{@child}")
-          Process.kill("KILL", @child) rescue nil
-        else
-          log! "Child #{@child} not found, restarting."
-          shutdown
-        end
-      end
+      Resque.worker_strategy.kill_child(self)
     end
 
     # are we paused?

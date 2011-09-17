@@ -10,7 +10,11 @@ require 'resque/failure/base'
 require 'resque/helpers'
 require 'resque/stat'
 require 'resque/job'
+
 require 'resque/worker'
+require 'resque/worker/simple'
+require 'resque/worker/forking'
+
 require 'resque/plugin'
 
 module Resque
@@ -51,6 +55,10 @@ module Resque
     return @redis if @redis
     self.redis = Redis.respond_to?(:connect) ? Redis.connect : "localhost:6379"
     self.redis
+  end
+
+  def worker_strategy
+    @worker_strategy ||= Worker::Forking.supported? ? Worker::Forking : Worker::Simple
   end
 
   def redis_id
