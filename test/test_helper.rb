@@ -42,7 +42,12 @@ at_exit do
   pid = `ps -A -o pid,command | grep [r]edis-test`.split(" ")[0]
   puts "Killing test redis server..."
   `rm -f #{dir}/dump.rdb`
-  Process.kill("KILL", pid.to_i)
+  begin
+    Process.kill("KILL", pid.to_i)
+  rescue NotImplementedError
+    puts "KILL NotImplementedError"
+  end
+
   exit exit_code
 end
 
