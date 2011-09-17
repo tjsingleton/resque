@@ -113,7 +113,7 @@ context "Resque::Worker" do
   end
 
   test "has a unique id" do
-    assert_equal "#{`hostname`.chomp}:#{$$}:jobs", @worker.to_s
+    assert_equal "#{`hostname`.chomp}:#{@worker.uniq_id}:jobs", @worker.to_s
   end
 
   test "complains if no queues are given" do
@@ -311,7 +311,7 @@ context "Resque::Worker" do
     @worker.very_verbose = true
     @worker.log("some log text")
 
-    assert_match /\*\* \[15:44:33 2011-03-02\] \d+: some log text/, $last_puts
+    assert_match /\*\* \[15:44:33 2011-03-02\] #{@worker.uniq_id}: some log text/, $last_puts
   end
 
   test "Will call an after_fork hook after forking" do
@@ -327,6 +327,6 @@ context "Resque::Worker" do
   end
 
   test "returns PID of running process" do
-    assert_equal @worker.to_s.split(":")[1].to_i, @worker.pid
+    assert_match /#{@worker.uniq_id}/, @worker.to_s
   end
 end

@@ -380,7 +380,7 @@ module Resque
     # The string representation is the same as the id for this worker
     # instance. Can be used with `Worker.find`.
     def to_s
-      @to_s ||= "#{hostname}:#{Process.pid}:#{@queues.join(',')}"
+      @to_s ||= "#{hostname}:#{uniq_id}:#{@queues.join(',')}"
     end
     alias_method :id, :to_s
 
@@ -442,13 +442,17 @@ module Resque
         puts "*** #{message}"
       elsif very_verbose
         time = Time.now.strftime('%H:%M:%S %Y-%m-%d')
-        puts "** [#{time}] #$$: #{message}"
+        puts "** [#{time}] #{uniq_id}: #{message}"
       end
     end
 
     # Logs a very verbose message to STDOUT.
     def log!(message)
       log message if very_verbose
+    end
+
+    def uniq_id
+      $$
     end
   end
 end

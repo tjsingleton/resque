@@ -14,6 +14,7 @@ require 'resque/job'
 require 'resque/worker'
 require 'resque/worker/simple'
 require 'resque/worker/forking'
+require 'resque/worker/threading'
 
 require 'resque/plugin'
 
@@ -58,7 +59,14 @@ module Resque
   end
 
   def worker_strategy
-    @worker_strategy ||= Worker::Forking.supported? ? Worker::Forking : Worker::Simple
+    @worker_strategy ||= case
+      when RUBY_ENGINE == 'jruby'
+        Worker::Threading
+      when Worker::Forking.supported?
+        Worker::Forking
+      else
+        Worker::Simple
+      end
   end
 
   def redis_id
