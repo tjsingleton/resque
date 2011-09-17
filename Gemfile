@@ -10,3 +10,9 @@ group :test do
   gem "yajl-ruby", "~>0.8.2", :platforms => :mri
   gem "json", "~>1.5.3", :platforms => [:jruby, :rbx]
 end
+
+group :kicker do
+  gem "kicker"
+  gem "activesupport"
+  gem "i18n"
+end
