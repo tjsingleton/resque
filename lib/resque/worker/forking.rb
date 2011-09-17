@@ -1,18 +1,19 @@
 module Resque
-  module Worker::Forking
-
-    extend self
-
+  class  Worker::Forking < Worker::Simple
+    #def very_verbose
+    #  true
+    #end
+    #
     # Not every platform supports fork. Here we do our magic to
     # determine if yours does.
-    def supported?#
+    def self.supported?
       return false if $TESTING
 
       # IronRuby doesn't support `Kernel.fork` yet
       return false unless Kernel.respond_to?(:fork)
 
       # test fork
-      if fork
+      if Kernel.fork
         Process.wait
       else
         exit!
@@ -22,48 +23,44 @@ module Resque
     rescue NotImplementedError
     end
 
-    def fork
-      Kernel.fork
-    end
-
-    def work (worker, interval, &block)
+    def execute_work_strategy(interval, &block)
       loop do
-        break if worker.shutdown?
+        break if shutdown?
 
-        if not worker.paused? and worker.job = reserve
-          worker.log "got: #{job.inspect}"
-          worker.run_hook :before_fork, job
-          worker.working_on job
+        if not paused? and job = reserve
+          log "got: #{job.inspect}"
+          run_hook :before_fork, job
+          working_on job
 
-          if @child = fork
+          if @child = Kernel.fork
             srand # Reseeding
-            worker.procline "Forked #{@child} at #{Time.now.to_i}"
+            procline "Forked #{@child} at #{Time.now.to_i}"
             Process.wait
           else
-            worker.procline "Processing #{job.queue} since #{Time.now.to_i}"
-            worker.perform(job, &block)
+            procline "Processing #{job.queue} since #{Time.now.to_i}"
+            perform(job, &block)
             exit!
           end
 
-          worker.done_working
+          done_working
           @child = nil
         else
           break if interval.zero?
-          worker.log! "Sleeping for #{interval} seconds"
-          worker.procline paused? ? "Paused" : "Waiting for #{worker.queues.join(',')}"
+          log! "Sleeping for #{interval} seconds"
+          procline paused? ? "Paused" : "Waiting for #{queues.join(',')}"
           sleep interval
         end
       end
     end
 
-    def kill_child(worker)
+    def kill_child
       if @child
         log! "Killing child at #{@child}"
         if system("ps -o pid,state -p #{@child}")
           Process.kill("KILL", @child) rescue nil
         else
-          worker.log! "Child #{@child} not found, restarting."
-          worker.shutdown
+          log! "Child #{@child} not found, restarting."
+          shutdown
         end
       end
     end
