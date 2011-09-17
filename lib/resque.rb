@@ -60,7 +60,7 @@ module Resque
 
   def worker_strategy
     @worker_strategy ||= case
-      when RUBY_ENGINE == 'jruby'
+      when defined?(RUBY_ENGINE) && RUBY_ENGINE == 'jruby'
         Worker::Threading
       when Worker::Forking.supported?
         Worker::Forking
