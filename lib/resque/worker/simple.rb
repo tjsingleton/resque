@@ -171,17 +171,21 @@ module Resque
     #
     # TERM: Shutdown immediately, stop processing jobs.
     #  INT: Shutdown immediately, stop processing jobs.
-    # QUIT: Shutdown after the current job has finished processing.
+    # QUIT: Shutdown after the current jobs have finished processing
+    # (note: QUIT doesn't work on JRuby)
+    # TTIN: Shutdown after the current jobs have finished processing
+    # (for JRuby)
     # USR1: Kill the forked child immediately, continue processing jobs.
     # USR2: Don't process any new jobs
     # CONT: Start processing jobs again after a USR2
     def register_signal_handlers
-      trap('TERM') { shutdown!  }
-      trap('INT')  { shutdown!  }
+      trap('TERM') { log 'TERM'; shutdown!  }
+      trap('INT')  { log 'INT'; shutdown!  }
 
       begin
-        trap('QUIT') { shutdown   }
-        trap('USR1') { kill_child }
+        trap('QUIT') { log 'QUIT'; shutdown }
+        trap('TTIN') { log 'TTIN'; shutdown }
+        trap('USR1') { log 'USR1'; kill_child }
         trap('USR2') { pause_processing }
         trap('CONT') { unpause_processing }
       rescue ArgumentError
@@ -190,6 +194,7 @@ module Resque
 
       log! "Registered signals"
     end
+
 
     # Schedule this worker for shutdown. Will finish processing the
     # current job.
