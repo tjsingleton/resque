@@ -2,6 +2,8 @@ source :rubygems
 
 gemspec
 
+gem "connection_pool", :git => 'git://github.com/tjsingleton/connection_pool.git'
+
 group :test do
   gem "rake"
   gem "rack-test", "~> 0.5"

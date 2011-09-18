@@ -32,7 +32,9 @@ module Resque
         when String
           parse_string redis
         when Redis
-          parse_redis redis
+          parse_client redis.client
+        when Redis::Client
+          parse_client redis
         when Redis::Namespace
           parse_namespace redis
         else
@@ -48,12 +50,12 @@ module Resque
       [host, port, db, namespace]
     end
 
-    def parse_redis(redis)
-      [redis.host, redis.port, redis.db]
+    def parse_client(client)
+      [client.host, client.port, client.db]
     end
 
     def parse_namespace(namespace)
-      parse_redis(namespace.client).concat [namespace.namespace]
+      parse_client(namespace.client).concat [namespace.namespace]
     end
 
     def to_hash(host = nil, port = nil, db = nil, namespace = nil)
