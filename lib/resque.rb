@@ -12,7 +12,6 @@ require 'resque/stat'
 require 'resque/job'
 
 require 'resque/worker'
-require 'resque/worker/simple'
 require 'resque/worker/forking'
 require 'resque/worker/threading'
 
@@ -104,7 +103,7 @@ module Resque
       when Worker::Forking.supported?
         Worker::Forking
       else
-        Worker::Simple
+        Module.new # noop
       end
   end
 

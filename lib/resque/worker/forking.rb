@@ -1,5 +1,5 @@
 module Resque
-  class  Worker::Forking < Worker::Simple
+  module  Worker::Forking
     #def very_verbose
     #  true
     #end

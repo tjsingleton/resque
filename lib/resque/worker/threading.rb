@@ -1,5 +1,5 @@
 module Resque
-  class Worker::Threading < Worker::Simple
+  module Worker::Threading
     def work_strategy(interval = 5.0, &block)
      threads = []
      thread_count.times do |idx|
