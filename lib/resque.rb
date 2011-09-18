@@ -18,9 +18,54 @@ require 'resque/worker/threading'
 
 require 'resque/plugin'
 
+require 'connection_pool'
+
 module Resque
   include Helpers
   extend self
+
+  module RedisConnectionDetailExtractor
+    extend self
+
+    def coerce(redis)
+      to_hash *case redis
+        when String
+          parse_string redis
+        when Redis
+          parse_redis redis
+        when Redis::Namespace
+          parse_namespace redis
+        else
+          []
+      end
+    end
+
+    private
+    def parse_string(server)
+      server, namespace = server.split('/', 2)
+      host, port, db = server.split(':')
+
+      [host, port, db, namespace]
+    end
+
+    def parse_redis(redis)
+      [redis.host, redis.port, redis.db]
+    end
+
+    def parse_namespace(namespace)
+      parse_redis(namespace.client).concat [namespace.namespace]
+    end
+
+    def to_hash(host = nil, port = nil, db = nil, namespace = nil)
+      hash = {}
+      hash[:host] = host if host
+      hash[:port] = port if port
+      hash[:db] = db if db
+      hash[:namespace] = namespace if namespace
+      hash
+    end
+  end
+
 
   # Accepts:
   #   1. A 'hostname:port' String
@@ -30,23 +75,15 @@ module Resque
   #   5. An instance of `Redis`, `Redis::Client`, `Redis::DistRedis`,
   #      or `Redis::Namespace`.
   def redis=(server)
-    case server
-    when String
-      if server =~ /redis\:\/\//
-        redis = Redis.connect(:url => server, :thread_safe => true)
-      else
-        server, namespace = server.split('/', 2)
-        host, port, db = server.split(':')
-        redis = Redis.new(:host => host, :port => port,
-          :thread_safe => true, :db => db)
-      end
-      namespace ||= :resque
+    details = RedisConnectionDetailExtractor.coerce server
+    host = details.fetch(:host) { 'localhost' }
+    port = details.fetch(:port) { 6379 }
+    db = details.fetch(:db) { 0 }
+    namespace = details.fetch(:namespace) { :resque }
 
-      @redis = Redis::Namespace.new(namespace, :redis => redis)
-    when Redis::Namespace
-      @redis = server
-    else
-      @redis = Redis::Namespace.new(:resque, :redis => server)
+    @redis = ConnectionPool.new(:size => (ENV['REDIS_CONNECTIONS'] || 3).to_i) do
+      redis = Redis.new(:host => host, :port => port, :db => db)
+      Redis::Namespace.new(namespace, :redis => redis)
     end
   end
 

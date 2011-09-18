@@ -20,7 +20,11 @@ context "Resque" do
     new_redis = Redis.new(:host => "localhost", :port => 9736)
     new_namespace = Redis::Namespace.new("namespace", :redis => new_redis)
     Resque.redis = new_namespace
-    assert_equal new_namespace, Resque.redis
+
+    assert_equal new_namespace.namespace, Resque.redis.namespace
+    assert_equal new_namespace.client.host, Resque.redis.client.host
+    assert_equal new_namespace.client.port, Resque.redis.client.port
+    assert_equal new_namespace.client.db, Resque.redis.client.db
 
     Resque.redis = 'localhost:9736/namespace'
   end
